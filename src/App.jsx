@@ -1,10 +1,13 @@
+import { useState } from 'react'
 import {
   createBrowserRouter,
   RouterProvider,
   Outlet,
   Form,
+  useLoaderData,
   Link,
 } from "react-router-dom";
+import { GiphyFetch } from '@giphy/js-fetch-api'
 
 const gf = new GiphyFetch(import.meta.env.VITE_GIPHY_KEY)
 
@@ -28,6 +31,19 @@ function Navbar() {
   </nav>
 }
 
+function Spinner() {
+  return <div className="flex items-center justify-center">
+    <span className="loading loading-spinner loading-lg"></span>
+  </div>
+}
+
+function ErrorAlert({ message }) {
+  return <div className="alert alert-error">
+  <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+  <span>{ message }</span>
+</div>
+}
+
 function SearchIcon() {
   return <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -45,6 +61,21 @@ function SearchIcon() {
     </svg>
 }
 
+function GifList({ gifs }) {
+
+  return <div className="mx-auto max-w-screen-md columns-2 md:columns-3 gap-4">
+    {gifs.map(gif => (
+      <GifItem key={gif.slug} gif={gif} />
+    ))}
+  </div>
+}
+
+function GifItem({ gif }) {
+  return <figure className="rounded-md border border-base-300 overflow-hidden mb-4">
+    <video src={gif.images.looping.mp4} />
+  </figure>
+}
+
 function SearchBar({ onChange = () => {} }) {
   return <Form method="get" className="join w-full">
     <input 
@@ -59,15 +90,39 @@ function SearchBar({ onChange = () => {} }) {
   </Form>
 }
 
+function getSearchParams(req) {
+  const url = new URL(req.url)
+  return url.searchParams
+}
+
+function searchLoader({ request }) {
+  const sp = getSearchParams(request)
+  if(sp.has('query')) {
+    return gf.search(sp.get('query'), {limit: 9, type: 'gifs'})
+  } else {
+    return gf.trending({ limit: 9, type: 'gifs' })
+  }
+}
+
 function SearchYourGiphy() {
+  const resp = useLoaderData()
   return <Layout>
-    <h1>iron man</h1>
+    <h1 className="text-4xl text-center font-bold mb-6">Search</h1>
+    <div className="mx-auto w-full max-w-lg mb-6">
+      <SearchBar/>
+    </div>
+    <GifList gifs={resp.data} />
   </Layout>
 }
 
+const ironmanLoader = () => gf.search('iron-man', { limit: 9, type:'gifs' })
+
 function IronmanGiphy() {
+  const resp = useLoaderData()
+
   return <Layout>
-    <h1>iron man</h1>
+    <h1 className="text-4xl text-center font-bold mb-6">Iron Man</h1>
+    <GifList gifs={resp.data} />
   </Layout>
 }
 
@@ -102,10 +157,12 @@ const router = createBrowserRouter([
   },
   {
     path: 'search',
+    loader: searchLoader,
     element: <SearchYourGiphy/>
   },
   {
     path: 'iron-man',
+    loader: ironmanLoader,
     element: <IronmanGiphy/>
   }
 ]);
